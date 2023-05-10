@@ -14,7 +14,7 @@ import '@uniswap/v2-periphery/contracts/libraries/UniswapV2Library.sol';
 contract EthOracle {
     using FixedPoint for *;
 
-    uint public constant PERIOD = 24 hours;
+    uint public constant PERIOD = 1 hours;
 
     IUniswapV2Pair immutable pair;
     address public immutable token0;
