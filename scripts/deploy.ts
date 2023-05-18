@@ -1,19 +1,28 @@
-import { ethers, run } from "hardhat";
+import { ethers } from "hardhat";
+import { readFileSync } from "fs";
 
 async function main() {
-  await run("compile");
+  const [deployer] = await ethers.getSigners();
 
-  const factory = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f";
-  const token0 = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-  const token1 = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+  console.log(
+    "Deploying the Nuggets contract with the account:",
+    deployer.address
+  );
 
-  const EthOracleFactory = await ethers.getContractFactory("EthOracle");
-  const ethOracle = await EthOracleFactory.deploy(factory, token0, token1);
+  const networkName = process.env.HARDHAT_NETWORK || "hardhat";
 
-  console.log("Deploying EthOracle...");
-  await ethOracle.deployed();
+  const config = JSON.parse(
+    readFileSync(`configs/${networkName}-config.json`, "utf8")
+  );
 
-  console.log("EthOracle deployed to:", ethOracle.address);
+  const Nuggets = await ethers.getContractFactory("Nuggets");
+  const nuggets = await Nuggets.deploy(
+    config.StethAddress,
+    config.ChainlinkStethPriceFeedAddress,
+    config.ChainlinkGoldPriceFeedAddress
+  );
+
+  console.log("Nuggets contract deployed at:", nuggets.address);
 }
 
 main()

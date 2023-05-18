@@ -11,6 +11,10 @@ import { resolve, join } from "path";
 import "@typechain/hardhat";
 import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-waffle";
+import * as dotenv from "dotenv";
+import { ethers } from "ethers";
+
+dotenv.config(); // Load environment variables from .env file
 
 task(
   "compile",
@@ -49,14 +53,24 @@ task(
   }
 );
 
+// Create an ethers.Wallet instance for each account derived from the mnemonic
+const accounts = ethers.Wallet.fromMnemonic(
+  process.env.MNEMONIC || ""
+).privateKey;
+
 const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: "https://mainnet.infura.io/v3/2a230ae89c534f9ca95b815000910bc5",
+        url: process.env.INFURA_URL_MAINNET || "", // Load from environment variable
         blockNumber: 17221015,
       },
     },
+    ropsten: {
+      url: process.env.INFURA_URL_ROPSTEN || "", // Load from environment variable
+      accounts: [accounts], // use derived accounts
+    },
+    // Add other networks here
   },
   solidity: {
     compilers: [
