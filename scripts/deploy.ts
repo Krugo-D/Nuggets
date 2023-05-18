@@ -17,7 +17,7 @@ async function main() {
 
   const Nuggets = await ethers.getContractFactory("Nuggets");
   const nuggets = await Nuggets.deploy(
-    config.StethAddress,
+    config.StethTokenAddress,
     config.ChainlinkStethPriceFeedAddress,
     config.ChainlinkGoldPriceFeedAddress
   );

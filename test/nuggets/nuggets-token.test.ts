@@ -6,26 +6,22 @@ import {
   Nuggets__factory,
   IERC20,
   IERC20__factory,
-  EthOracle,
-  EthOracle__factory,
 } from "../../typechain-types";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 chai.use(chaiAsPromised);
 const { expect } = chai;
 
 describe("Nuggets", function () {
   let nuggets: Nuggets;
-  let ethOracle: EthOracle;
   let owner: ethers.Signer;
   let user: ethers.Signer;
   let liquidator: ethers.Signer;
   let signers: ethers.Signer[];
   let stETH: IERC20;
-
-  const stETHAddress = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
-  const whaleAddress = "0x338F3EC014d7edACb98506881d1E18Dc00980fdC"; // whale address with lots of stETH
-  const WETHAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"; // address of the WETH token
-  const UniswapV2FactoryAddress = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f"; // address of the Uniswap V2 Factory
+  let link: IERC20;
+  let config: any;
 
   beforeEach(async function () {
     signers = await ethers.getSigners();
@@ -33,75 +29,95 @@ describe("Nuggets", function () {
     user = signers[1];
     liquidator = signers[2];
 
-    const ethOracleFactory = (await ethers.getContractFactory(
-      "EthOracle",
-      owner
-    )) as EthOracle__factory;
+    const networkName = process.env.HARDHAT_NETWORK || "hardhat";
 
-    ethOracle = await ethOracleFactory.deploy(
-      UniswapV2FactoryAddress,
-      stETHAddress,
-      WETHAddress
+    config = JSON.parse(
+      readFileSync(
+        join(__dirname, `../../configs/${networkName}-config.json`),
+        "utf8"
+      )
     );
-    await ethOracle.deployed();
 
-    const nuggetsFactory = (await ethers.getContractFactory(
-      "Nuggets",
-      owner
-    )) as Nuggets__factory;
-
-    nuggets = await nuggetsFactory.deploy(ethOracle.address);
+    const NuggetsContract = await ethers.getContractFactory("Nuggets");
+    nuggets = await NuggetsContract.deploy(
+      config.StethTokenAddress,
+      config.ChainlinkStethPriceFeedAddress,
+      config.ChainlinkGoldPriceFeedAddress
+    );
     await nuggets.deployed();
 
-    stETH = IERC20__factory.connect(stETHAddress, ethers.provider);
+    stETH = IERC20__factory.connect(config.StethTokenAddress, owner);
+    link = IERC20__factory.connect(config.ChainlinkTokenAddress, owner);
 
-    // Impersonate whale account
+    // Impersonate stETH whale account
     await network.provider.request({
       method: "hardhat_impersonateAccount",
-      params: [whaleAddress],
+      params: [config.StethWhaleAddress],
     });
 
-    const whale = ethers.provider.getSigner(whaleAddress);
+    const stEthWhale = ethers.provider.getSigner(config.StethWhaleAddress);
     const stEthAmount = ethers.utils.parseEther("1000"); // 1000 stETH
 
     // Transfer stETH from whale to user
-    await stETH.connect(whale).transfer(await user.getAddress(), stEthAmount);
+    await stETH
+      .connect(stEthWhale)
+      .transfer(await user.getAddress(), stEthAmount);
 
-    // Stop impersonating whale account
+    // Stop impersonating stETH whale account
     await network.provider.request({
       method: "hardhat_stopImpersonatingAccount",
-      params: [whaleAddress],
+      params: [config.StethWhaleAddress],
     });
 
-    // Set price to $1800 per ETH
-    await nuggets.getEthPriceInUsd();
-  });
+    // Impersonate Chainlink whale account
+    await network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [config.ChainlinkWhaleAddress],
+    });
 
-  it("Should mint Nuggets worth half the amount of the USD value of deposited stETH", async function () {
-    const stEthAmount = ethers.utils.parseEther("10"); // user deposits 10 stETH
-    await stETH.connect(user).approve(nuggets.address, stEthAmount);
-    await nuggets.connect(user).mint(stEthAmount);
-
-    // Call getEthPriceInUsd and retrieve the price from the EthPriceUpdated event
-    const tx = await nuggets.getEthPriceInUsd();
-    const receipt = await tx.wait();
-    const event = receipt.events?.find((e) => e.event === "EthPriceUpdated");
-    const ethPriceInUsd = event?.args?.[0];
-
-    const expectedNuggets = stEthAmount.mul(ethPriceInUsd).div(2); // minted NGT = 2 * stETH * ethPriceInUsd
-    expect(await nuggets.balanceOf(await user.getAddress())).to.equal(
-      expectedNuggets
+    const chainlinkWhale = ethers.provider.getSigner(
+      config.ChainlinkWhaleAddress
     );
+    const linkAmount = ethers.utils.parseEther("1000"); // 1000 LINK
+
+    // Transfer LINK from Chainlink whale to Nuggets contract
+    await link.connect(chainlinkWhale).transfer(nuggets.address, linkAmount);
+
+    // Stop impersonating Chainlink whale account
+    await network.provider.request({
+      method: "hardhat_stopImpersonatingAccount",
+      params: [config.ChainlinkWhaleAddress],
+    });
   });
 
-  /*
-  it("Should allow users to liquidate undercollateralised positions", async function () {
+  it("Should allow users to borrow Nuggets", async function () {
     const stEthAmount = ethers.utils.parseEther("10"); // user deposits 10 stETH
     await stETH.connect(user).approve(nuggets.address, stEthAmount);
-    await nuggets.connect(user).mint(stEthAmount);
+    await nuggets.connect(user).borrow(stEthAmount);
 
-    // Set price to $500 per ETH, making the position undercollateralized
-    
+    expect(await nuggets.balanceOf(await user.getAddress())).to.be.gt(0); // user should have borrowed some Nuggets
+  });
+
+  it("Should allow users to repay Nuggets and get their collateral back", async function () {
+    const stEthAmount = ethers.utils.parseEther("10"); // user deposits 10 stETH
+    await stETH.connect(user).approve(nuggets.address, stEthAmount);
+    await nuggets.connect(user).borrow(stEthAmount);
+
+    const nuggetsAmount = await nuggets.balanceOf(await user.getAddress()); // get the amount of borrowed Nuggets
+
+    await nuggets.connect(user).repay(nuggetsAmount); // user repays all borrowed Nuggets
+
+    expect(await nuggets.balanceOf(await user.getAddress())).to.equal(0); // user's Nuggets balance should be 0 after repayment
+    expect(await stETH.balanceOf(await user.getAddress())).to.be.gt(0); // user should have received their stETH back
+  });
+
+  it("Should allow liquidators to liquidate undercollateralised positions", async function () {
+    const stEthAmount = ethers.utils.parseEther("10"); // user deposits 10 stETH
+    await stETH.connect(user).approve(nuggets.address, stEthAmount);
+    await nuggets.connect(user).borrow(stEthAmount);
+
+    // Force the position to become undercollateralized
+    await nuggets.updateStEthPrice(ethers.utils.parseEther("0.01"));
 
     // Liquidator tries to liquidate the user's position
     await nuggets.connect(liquidator).liquidate(await user.getAddress());
@@ -109,5 +125,27 @@ describe("Nuggets", function () {
     expect(await nuggets.balanceOf(await user.getAddress())).to.equal(0); // user's Nuggets balance should be 0 after liquidation
     expect(await stETH.balanceOf(await liquidator.getAddress())).to.be.gt(0); // liquidator should have received some stETH
   });
-  */
+
+  it("Should prevent overborrowing", async function () {
+    const stEthAmount = ethers.utils.parseEther("10"); // user deposits 10 stETH
+    await stETH.connect(user).approve(nuggets.address, stEthAmount);
+
+    // User tries to borrow more Nuggets than the deposited collateral allows
+    await expect(
+      nuggets.connect(user).borrow(ethers.utils.parseEther("20000"))
+    ).to.be.revertedWith("Cannot borrow more than collateral allows");
+  });
+
+  it("Should prevent liquidation of adequately collateralised positions", async function () {
+    const stEthAmount = ethers.utils.parseEther("10"); // user deposits 10 stETH
+    await stETH.connect(user).approve(nuggets.address, stEthAmount);
+    await nuggets.connect(user).borrow(stEthAmount);
+
+    // Liquidator tries to liquidate a correctly collateralised position
+    await expect(
+      nuggets.connect(liquidator).liquidate(await user.getAddress())
+    ).to.be.revertedWith(
+      "Cannot liquidate a sufficiently collateralised position"
+    );
+  });
 });
