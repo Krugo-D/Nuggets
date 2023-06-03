@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from "react";
 import Web3 from "web3";
 import Web3Modal from "web3modal";
+import "./styles.css";
+import Container from "react-bootstrap/Container";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
+import Card from "react-bootstrap/Card";
+import Button from "react-bootstrap/Button";
+import InputGroup from "react-bootstrap/InputGroup";
+import FormControl from "react-bootstrap/FormControl";
 
 // Your contract ABI
 import nuggetsArtifact from "./abi/Nuggets.sol/Nuggets.json";
@@ -17,8 +25,8 @@ function App() {
   const [account, setAccount] = useState(null);
   const [web3, setWeb3] = useState(null);
   const [nuggetsContract, setNuggetsContract] = useState(null);
-  const [stETHContract, setStETHContract] = useState(null); // Added
-  const [isLoading, setIsLoading] = useState(false); // Added
+  const [stETHContract, setStETHContract] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [stETHBalance, setStETHBalance] = useState(0);
   const [stETHLocked, setStETHLocked] = useState(0);
   const [nuggetsMinted, setNuggetsMinted] = useState(0);
@@ -46,7 +54,7 @@ function App() {
     setAccount(accounts[0]);
     setWeb3(web3Instance);
     setNuggetsContract(contract);
-    setStETHContract(stETHContract); // Added
+    setStETHContract(stETHContract);
   };
 
   const disconnectWallet = () => {
@@ -54,12 +62,20 @@ function App() {
     setAccount(null);
     setWeb3(null);
     setNuggetsContract(null);
-    setStETHContract(null); // Added
+    setStETHContract(null);
+  };
+
+  const handleMaxBorrow = () => {
+    setBorrowAmount(stETHBalance);
+  };
+
+  const handleMaxRedeem = () => {
+    setRedeemAmount(nuggetsMinted);
   };
 
   const handleBorrow = async () => {
     if (nuggetsContract && account && stETHContract) {
-      setIsLoading(true); // Added
+      setIsLoading(true);
       try {
         const borrowAmountInWei = web3.utils.toWei(borrowAmount, "ether");
         const approveTransaction = await stETHContract.methods
@@ -73,19 +89,20 @@ function App() {
 
           if (borrowTransaction) {
             fetchContractData();
+            setBorrowAmount(0); // Reset the borrowAmount field
           }
         }
       } catch (error) {
         console.error("Error borrowing: ", error);
       } finally {
-        setIsLoading(false); // Added
+        setIsLoading(false);
       }
     }
   };
 
   const handleRedeem = async () => {
     if (nuggetsContract && account) {
-      setIsLoading(true); // Added
+      setIsLoading(true);
       try {
         const redeemAmountInWei = web3.utils.toWei(redeemAmount, "ether");
         const redeemTransaction = await nuggetsContract.methods
@@ -94,11 +111,12 @@ function App() {
 
         if (redeemTransaction) {
           fetchContractData();
+          setRedeemAmount(0); // Reset the redeemAmount field
         }
       } catch (error) {
         console.error("Error redeeming: ", error);
       } finally {
-        setIsLoading(false); // Added
+        setIsLoading(false);
       }
     }
   };
@@ -134,41 +152,94 @@ function App() {
   }, [nuggetsContract, account]);
 
   return (
-    <div>
-      <button onClick={account ? disconnectWallet : connectWallet}>
-        {account ? "Disconnect Wallet" : "Connect Wallet"}
-      </button>
+    <Container>
+      <Row className="justify-content-md-center">
+        <Col xs lg="2">
+          <Button onClick={account ? disconnectWallet : connectWallet}>
+            {account ? "Disconnect Wallet" : "Connect Wallet"}
+          </Button>
+        </Col>
+      </Row>
+
       {account && (
-        <div>
-          <h2>Account: {account}</h2>
-          <h2>stETH Balance: {stETHBalance}</h2>
-          <h2>stETH Locked: {stETHLocked}</h2>
-          <h2>Nuggets Minted: {nuggetsMinted}</h2>
-          <h2>Collateral Ratio: {collateralRatio}</h2>
-          <h2>stETH Price in USD: {stETHPrice}</h2>
-          <h2>Gold Price in USD: {goldPrice}</h2>
-          <div>
-            <h2>Borrow Nuggets</h2>
-            <input
-              type="number"
-              value={borrowAmount}
-              onChange={(e) => setBorrowAmount(e.target.value)}
-            />
-            <button onClick={handleBorrow}>Borrow</button>
-          </div>
-          <div>
-            <h2>Redeem Nuggets</h2>
-            <input
-              type="number"
-              value={redeemAmount}
-              onChange={(e) => setRedeemAmount(e.target.value)}
-            />
-            <button onClick={handleRedeem}>Redeem</button>
-          </div>
-          {isLoading && <p>Transaction is being processed...</p>} {/* Added */}
-        </div>
+        <>
+          <Row>
+            <Col>
+              <Card>
+                <Card.Header>Account</Card.Header>
+                <Card.Body>
+                  <Card.Title>{account}</Card.Title>
+                  <Card.Text>
+                    stETH Balance: {stETHBalance} <br />
+                    stETH Locked: {stETHLocked} <br />
+                    Nuggets Borrowed: {nuggetsMinted}
+                  </Card.Text>
+                </Card.Body>
+                <Card.Body>
+                  <InputGroup className="mb-3">
+                    <FormControl
+                      placeholder="Amount"
+                      aria-label="Amount"
+                      aria-describedby="basic-addon2"
+                      type="number"
+                      value={borrowAmount}
+                      onChange={(e) => setBorrowAmount(e.target.value)}
+                    />
+                    <Button
+                      variant="outline-secondary"
+                      onClick={handleMaxBorrow}>
+                      Max
+                    </Button>
+                    <Button variant="outline-primary" onClick={handleBorrow}>
+                      Borrow
+                    </Button>
+                  </InputGroup>
+                </Card.Body>
+                <Card.Body>
+                  <InputGroup className="mb-3">
+                    <FormControl
+                      placeholder="Amount"
+                      aria-label="Amount"
+                      aria-describedby="basic-addon2"
+                      type="number"
+                      value={redeemAmount}
+                      onChange={(e) => setRedeemAmount(e.target.value)}
+                    />
+                    <Button
+                      variant="outline-secondary"
+                      onClick={handleMaxRedeem}>
+                      Max
+                    </Button>
+                    <Button variant="outline-primary" onClick={handleRedeem}>
+                      Redeem
+                    </Button>
+                  </InputGroup>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col>
+              <Card>
+                <Card.Header>Oracles</Card.Header>
+                <Card.Body>
+                  <Card.Text>
+                    stETH Price in USD: {stETHPrice} <br />
+                    Gold Price in USD: {goldPrice}
+                  </Card.Text>
+                </Card.Body>
+              </Card>
+              <Card>
+                <Card.Header>Contract</Card.Header>
+                <Card.Body>
+                  <Card.Title>{CONTRACT_ADDRESS}</Card.Title>
+                  <Card.Text>Collateral Ratio: {collateralRatio}</Card.Text>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+          <Row>{isLoading && <Col>Transaction is being processed...</Col>}</Row>
+        </>
       )}
-    </div>
+    </Container>
   );
 }
 
