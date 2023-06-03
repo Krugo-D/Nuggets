@@ -64,7 +64,7 @@ contract Nuggets is ERC20, Ownable {
         uint256 stEthPriceInUsd = getStethPriceInUsd();
         uint256 nuggetsAmount = balanceOf(account);
 
-        require(collateral[account] * stEthPriceInUsd * 100 < nuggetsAmount * COLLATERAL_RATIO, "Cannot liquidate");
+        require(collateral[account] * stEthPriceInUsd * 100 < nuggetsAmount * COLLATERAL_RATIO, "Cannot liquidate a sufficiently collateralised position");
 
         uint256 liquidationReward = nuggetsAmount * LIQUIDATION_FEE / 100;
         uint256 accountCollateral = collateral[account];
@@ -84,5 +84,9 @@ contract Nuggets is ERC20, Ownable {
         // Calculate the value of the stETH deposit in terms of gold
         uint256 stEthValueInGold = stEthAmount * stEthPriceInUsd / goldPriceInUsd;
         return stEthValueInGold;
+    }
+
+    function getStethBalance(address account) public view returns (uint256) {
+        return stETH.balanceOf(account);
     }
 }

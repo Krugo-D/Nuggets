@@ -23,10 +23,7 @@ task(
     await runSuper(args); // this runs the original compile task
 
     const artifactDirectory = resolve(__dirname, "./artifacts/contracts");
-    const destinationDirectory = resolve(
-      __dirname,
-      "./frontend/public/contracts"
-    );
+    const destinationDirectory = resolve(__dirname, "./frontend/src/abi");
 
     const copyFilesRecursive = (
       sourceDirectory: string,
@@ -61,6 +58,12 @@ const accounts = ethers.Wallet.fromMnemonic(
 const config: HardhatUserConfig = {
   networks: {
     hardhat: {
+      forking: {
+        url: process.env.INFURA_URL_MAINNET || "", // Load from environment variable
+        blockNumber: 17221015,
+      },
+    },
+    localhost: {
       forking: {
         url: process.env.INFURA_URL_MAINNET || "", // Load from environment variable
         blockNumber: 17221015,
