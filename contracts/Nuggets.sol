@@ -11,7 +11,7 @@ contract Nuggets is ERC20, Ownable {
     AggregatorV3Interface public stEthPriceFeed;
     AggregatorV3Interface public goldPriceFeed;
 
-    uint256 public constant COLLATERAL_RATIO = 200;
+    uint256 public constant COLLATERALISATION_RATIO = 200;
     uint256 public constant LIQUIDATION_RATIO = 150;
     uint256 public constant LIQUIDATION_FEE = 5;
 
@@ -64,7 +64,7 @@ contract Nuggets is ERC20, Ownable {
         uint256 stEthPriceInUsd = getStethPriceInUsd();
         uint256 nuggetsAmount = balanceOf(account);
 
-        require(collateral[account] * stEthPriceInUsd * 100 < nuggetsAmount * COLLATERAL_RATIO, "Cannot liquidate a sufficiently collateralised position");
+        require(collateral[account] * stEthPriceInUsd * 100 < nuggetsAmount * LIQUIDATION_RATIO, "Cannot liquidate a sufficiently collateralised position");
 
         uint256 liquidationReward = nuggetsAmount * LIQUIDATION_FEE / 100;
         uint256 accountCollateral = collateral[account];
@@ -83,8 +83,13 @@ contract Nuggets is ERC20, Ownable {
     function calculateNuggetsAmount(uint256 stEthAmount, uint256 stEthPriceInUsd, uint256 goldPriceInUsd) public pure returns (uint256) {
         // Calculate the value of the stETH deposit in terms of gold
         uint256 stEthValueInGold = stEthAmount * stEthPriceInUsd / goldPriceInUsd;
-        return stEthValueInGold;
+
+        // Adjust by the collateralisation ratio
+        uint256 nuggetsAmount = stEthValueInGold * 100 / COLLATERALISATION_RATIO; // COLLATERALISATION_RATIO is expressed as a percentage
+
+        return nuggetsAmount;
     }
+
 
     function getStethBalance(address account) public view returns (uint256) {
         return stETH.balanceOf(account);

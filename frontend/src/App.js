@@ -13,7 +13,7 @@ import FormControl from "react-bootstrap/FormControl";
 // Your contract ABI
 import nuggetsArtifact from "./abi/Nuggets.sol/Nuggets.json";
 const contractABI = nuggetsArtifact.abi;
-const CONTRACT_ADDRESS = "0xb04CB6c52E73CF3e2753776030CE85a36549c9C2";
+const CONTRACT_ADDRESS = "0x1c39BA375faB6a9f6E0c01B9F49d488e101C2011";
 
 // Load the IERC20 artifact
 const IERC20Artifact = require("./abi/IERC20.sol/IERC20.json");
@@ -130,7 +130,7 @@ function App() {
       .balanceOf(account)
       .call();
     const collateralRatio = await nuggetsContract.methods
-      .COLLATERAL_RATIO()
+      .COLLATERALISATION_RATIO()
       .call();
     const stETHPrice = await nuggetsContract.methods
       .getStethPriceInUsd()
