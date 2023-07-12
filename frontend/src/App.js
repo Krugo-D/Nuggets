@@ -5,10 +5,13 @@ import "./styles.css";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import Card from "react-bootstrap/Card";
-import Button from "react-bootstrap/Button";
-import InputGroup from "react-bootstrap/InputGroup";
-import FormControl from "react-bootstrap/FormControl";
+
+// Import your components
+import Header from "./components/Header";
+import Account from "./components/Account";
+import Oracles from "./components/Oracles";
+import Contract from "./components/Contract";
+import Loading from "./components/Loading";
 
 // Your contract ABI
 import nuggetsArtifact from "./abi/Nuggets.sol/Nuggets.json";
@@ -30,7 +33,7 @@ function App() {
   const [stETHBalance, setStETHBalance] = useState(0);
   const [stETHLocked, setStETHLocked] = useState(0);
   const [nuggetsMinted, setNuggetsMinted] = useState(0);
-  const [collateralRatio, setCollateralRatio] = useState(0);
+  const [liquidationRatio, setLiquidationRatio] = useState(0);
   const [stETHPrice, setStETHPrice] = useState(0);
   const [goldPrice, setGoldPrice] = useState(0);
   const [borrowAmount, setBorrowAmount] = useState(0);
@@ -129,8 +132,8 @@ function App() {
     const nuggetsMinted = await nuggetsContract.methods
       .balanceOf(account)
       .call();
-    const collateralRatio = await nuggetsContract.methods
-      .COLLATERALISATION_RATIO()
+    const liquidationRatio = await nuggetsContract.methods
+      .LIQUIDATION_RATIO()
       .call();
     const stETHPrice = await nuggetsContract.methods
       .getStethPriceInUsd()
@@ -140,7 +143,7 @@ function App() {
     setStETHBalance(web3.utils.fromWei(stETHBalance, "ether"));
     setStETHLocked(web3.utils.fromWei(stETHLocked, "ether"));
     setNuggetsMinted(web3.utils.fromWei(nuggetsMinted, "ether"));
-    setCollateralRatio(collateralRatio);
+    setLiquidationRatio(liquidationRatio);
     setStETHPrice(web3.utils.fromWei(stETHPrice.toString(), "ether"));
     setGoldPrice(web3.utils.fromWei(goldPrice.toString(), "ether"));
   };
@@ -152,94 +155,52 @@ function App() {
   }, [nuggetsContract, account]);
 
   return (
-    <Container>
-      <Row className="justify-content-md-center">
-        <Col xs lg="2">
-          <Button onClick={account ? disconnectWallet : connectWallet}>
-            {account ? "Disconnect Wallet" : "Connect Wallet"}
-          </Button>
-        </Col>
-      </Row>
+    <div className="align-items-center">
+      <Container className="shadow-lg p-3 mb-5 bg-white rounded">
+        <Row className="justify-content-md-center mb-3">
+          <Col xs={12} md={8} lg={6}>
+            <Header
+              account={account}
+              connectWallet={connectWallet}
+              disconnectWallet={disconnectWallet}
+            />
+          </Col>
+        </Row>
 
-      {account && (
-        <>
-          <Row>
-            <Col>
-              <Card>
-                <Card.Header>Account</Card.Header>
-                <Card.Body>
-                  <Card.Title>{account}</Card.Title>
-                  <Card.Text>
-                    stETH Balance: {stETHBalance} <br />
-                    stETH Locked: {stETHLocked} <br />
-                    Nuggets Borrowed: {nuggetsMinted}
-                  </Card.Text>
-                </Card.Body>
-                <Card.Body>
-                  <InputGroup className="mb-3">
-                    <FormControl
-                      placeholder="Amount"
-                      aria-label="Amount"
-                      aria-describedby="basic-addon2"
-                      type="number"
-                      value={borrowAmount}
-                      onChange={(e) => setBorrowAmount(e.target.value)}
-                    />
-                    <Button
-                      variant="outline-secondary"
-                      onClick={handleMaxBorrow}>
-                      Max
-                    </Button>
-                    <Button variant="outline-primary" onClick={handleBorrow}>
-                      Borrow
-                    </Button>
-                  </InputGroup>
-                </Card.Body>
-                <Card.Body>
-                  <InputGroup className="mb-3">
-                    <FormControl
-                      placeholder="Amount"
-                      aria-label="Amount"
-                      aria-describedby="basic-addon2"
-                      type="number"
-                      value={redeemAmount}
-                      onChange={(e) => setRedeemAmount(e.target.value)}
-                    />
-                    <Button
-                      variant="outline-secondary"
-                      onClick={handleMaxRedeem}>
-                      Max
-                    </Button>
-                    <Button variant="outline-primary" onClick={handleRedeem}>
-                      Redeem
-                    </Button>
-                  </InputGroup>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col>
-              <Card>
-                <Card.Header>Oracles</Card.Header>
-                <Card.Body>
-                  <Card.Text>
-                    stETH Price in USD: {stETHPrice} <br />
-                    Gold Price in USD: {goldPrice}
-                  </Card.Text>
-                </Card.Body>
-              </Card>
-              <Card>
-                <Card.Header>Contract</Card.Header>
-                <Card.Body>
-                  <Card.Title>{CONTRACT_ADDRESS}</Card.Title>
-                  <Card.Text>Collateral Ratio: {collateralRatio}</Card.Text>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-          <Row>{isLoading && <Col>Transaction is being processed...</Col>}</Row>
-        </>
-      )}
-    </Container>
+        {account && (
+          <>
+            <Row>
+              <Col xs={12} md={6}>
+                <Account
+                  account={account}
+                  stETHBalance={stETHBalance}
+                  stETHLocked={stETHLocked}
+                  nuggetsMinted={nuggetsMinted}
+                  borrowAmount={borrowAmount}
+                  setBorrowAmount={setBorrowAmount}
+                  handleMaxBorrow={handleMaxBorrow}
+                  handleBorrow={handleBorrow}
+                  redeemAmount={redeemAmount}
+                  setRedeemAmount={setRedeemAmount}
+                  handleMaxRedeem={handleMaxRedeem}
+                  handleRedeem={handleRedeem}
+                />
+              </Col>
+              <Col xs={12} md={6}>
+                <Oracles stETHPrice={stETHPrice} goldPrice={goldPrice} />
+                <Contract
+                  CONTRACT_ADDRESS={CONTRACT_ADDRESS}
+                  liquidationRatio={liquidationRatio}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Loading isLoading={isLoading} />
+            </Row>
+          </>
+        )}
+      </Container>
+    </div>
   );
 }
 
